@@ -80,17 +80,43 @@ const useStorage=(key,def)=>{
 };
 
 // ━━━ AI ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const callAI=async(p,s)=>{
-  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1500,system:s||"Expert style minimal streetwear grisch. Réponds en français, concis.",messages:[{role:"user",content:p}]})});
-  const d=await r.json();if(d.error)throw new Error(d.error.message);
-  return d.content?.filter(b=>b.type==="text").map(b=>b.text).join("")||"";
+// === CALL AI ===
+const callAI = async (prompt, sys) => {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1000,
+      system: sys || "Expert style grisch streetwear minimal. Réponds en français, concis.",
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  const text = data.content
+    ? Array.isArray(data.content)
+      ? data.content.map(b => (typeof b === "string" ? b : b.text || "")).join("")
+      : data.content
+    : "";
+  if (!text) throw new Error("Réponse vide");
+  return text;
 };
-const pJSON=s=>{
-  for(const t of[s.trim(),s.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim()]){
-    try{return JSON.parse(t);}catch{}
-    for(const[o,c]of[["{","}"],["[","]"]]){const i=t.indexOf(o),j=t.lastIndexOf(c);if(i!==-1&&j>i)try{return JSON.parse(t.slice(i,j+1));}catch{}}
+
+// === SAFE JSON ===
+const safeJSON = (raw) => {
+  let s = raw.replace(/[“”«»„‟]/g, '"').replace(/[‘’‚‛]/g, "'");
+  s = s.replace(/```json|```/gi, "");
+  try { return JSON.parse(s); } catch {}
+  const firstJSON = s.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+  if (firstJSON) {
+    try { return JSON.parse(firstJSON[0]); } catch {}
+    const repaired = firstJSON[0]
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
+    try { return JSON.parse(repaired); } catch {}
   }
-  throw new Error("Parse failed");
+  throw new Error("Impossible de parser la réponse IA en JSON valide");
 };
 
 // ━━━ ICONS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

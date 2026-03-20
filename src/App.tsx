@@ -80,25 +80,23 @@ const useStorage=(key,def)=>{
 };
 
 // ━━━ AI ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// === CALL AI ===
 const callAI = async (prompt, sys) => {
-  const res = await fetch("/api/claude", {
+  const apiResponse = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1000,
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
       system: sys || "Expert style grisch streetwear minimal. Réponds en français, concis.",
       messages: [{ role: "user", content: prompt }]
     })
   });
-  const data = await response.json();
+  const data = await apiResponse.json();
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
   const text = data.content
-    ? Array.isArray(data.content)
-      ? data.content.map(b => (typeof b === "string" ? b : b.text || "")).join("")
-      : data.content
-    : "";
+    ?.filter(b => b.type === "text")
+    .map(b => b.text)
+    .join("") || "";
   if (!text) throw new Error("Réponse vide");
   return text;
 };
